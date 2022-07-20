@@ -243,7 +243,7 @@ if __name__ == '__main__':
     # create sent word
     SentWord.create(
         list_id='1',
-        date='',
+        date='2021-06-08',
         word={},
         word_id='123'
     )

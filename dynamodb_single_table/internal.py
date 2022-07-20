@@ -156,10 +156,13 @@ class CRUDInterface:
         new_instance = cls.from_dict(kwargs)
         setattr(new_instance, 'last_update', datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f%z'))
 
+        item = new_instance.to_item()
+        item['ClassName'] = cls.__name__
+
         # Save to DynamoDB
         table = cls.get_table()
         table.put_item(
-            Item=new_instance.to_item()
+            Item=item
         )
 
         return new_instance
