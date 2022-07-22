@@ -247,3 +247,9 @@ if __name__ == '__main__':
         word={},
         word_id='123'
     )
+
+    result = TableHolder.multiple_entity_query(
+        pk='USER#12345',
+    )
+
+    print(result)

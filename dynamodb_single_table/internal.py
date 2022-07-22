@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import boto3
+from boto3.dynamodb.conditions import Key
 from datetime import datetime
 import re
 
@@ -135,12 +136,12 @@ class CRUDInterface:
     @classmethod
     @abstractmethod
     def get_table(cls):
-        ...
+        raise NotImplementedError()
 
     @classmethod
     @abstractmethod
     def from_dict(cls, dict):
-        ...
+        raise NotImplementedError()
 
     # class methods
     @classmethod
@@ -173,11 +174,11 @@ class CRUDInterface:
 
     @classmethod
     def delete_by_key(cls, **kwargs):
-        ...
+        raise NotImplementedError()
 
     # instance methods
     def save(self):
-        ...
+        raise NotImplementedError()
 
     def save_if_no_conflict(self, last_update):
         raise NotImplementedError()
@@ -190,13 +191,13 @@ class QueryInterface:
         ...
 
     @classmethod
-    def multiple_entity_query(cls, **kwargs):
-        result = cls.get_table().query(**kwargs)
+    def _execute_query(cls, query_params):
+        result = cls.get_table().query(**query_params)
         items = result.get('Items', [])
 
-        while result['LastEvaluatedKey']:
+        while result.get('LastEvaluatedKey'):
             result = cls.get_table().query(**{
-                **kwargs,
+                **query_params,
                 **{
                     'LastEvaluatedKey': result['LastEvaluatedKey']
                 }
@@ -204,4 +205,56 @@ class QueryInterface:
 
             items += result.get('Items', [])
 
-        # TODO: Instantiate entities
+        return items
+
+    @classmethod
+    def _all_subclasses(cls):
+        return set(cls.__subclasses__()).union(
+            [s for c in cls.__subclasses__() for s in c._all_subclasses()])
+
+    @classmethod
+    def _get_entity_classes(cls):
+        return {
+            clazz.__name__: clazz
+            for clazz in cls._all_subclasses()
+            if hasattr(clazz, 'pk') and hasattr(clazz, 'sk') and hasattr(clazz, 'attributes')
+        }
+
+
+    @classmethod
+    def multiple_entity_query(cls, *, pk, sk=None, sk_prefix=None, index=None):
+        if sk and sk_prefix:
+            raise Exception()
+
+        query_params = {}
+
+        pk_condition = Key('GSI1PK' if index else 'PK').eq(pk)
+
+        if not sk and not sk_prefix:
+            query_params["KeyConditionExpression"] = pk_condition
+        else:
+            if sk:
+                sk_condition = Key('GSI1SK' if index else 'SK').eq(sk)
+            elif sk_prefix:
+                sk_condition = Key('GSI1SK' if index else 'SK').begins_with(sk_prefix)
+
+            query_params["KeyConditionExpression"] = pk_condition & sk_condition
+
+        if index:
+            query_params['IndexName'] = index
+
+        items = cls._execute_query(query_params)
+
+        # Instantiate entities
+        entity_classes = cls._get_entity_classes()
+
+        entity_dict = {}
+
+        for item in items:
+            entity_type = item['ClassName']
+            entity_class = entity_classes[entity_type]
+
+            entities = entity_dict.get(entity_type, [])
+            entity_dict[entity_type] = entities + [ entity_class.from_item(item) ]
+
+        return entity_dict
