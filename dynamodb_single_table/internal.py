@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 from datetime import datetime, timezone
 import re
 
@@ -218,8 +218,27 @@ class CRUDInterface:
         return new_instance
 
     @classmethod
-    def create_if_no_conflict(self, **kwargs):
-        raise NotImplementedError()
+    def create_if_no_conflict(cls, **kwargs):
+        new_instance = cls.from_dict(kwargs)
+        setattr(new_instance, 'last_update', datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z'))
+
+        item = new_instance.to_item()
+
+        # Save to DynamoDB
+        table = cls.get_table()
+        table.put_item(
+            Item=item,
+            Expected={
+                'PK': {
+                    'Exists': False
+                },
+                'SK': {
+                    'Exists': False
+                },
+            }
+        )
+
+        return new_instance
 
     @classmethod
     def delete_by_key(cls, **kwargs):
@@ -235,8 +254,20 @@ class CRUDInterface:
             Item=self.to_item()
         )
 
-    def save_if_no_conflict(self, last_update):
-        raise NotImplementedError()
+    def save_if_no_conflict(self, last_update=None):
+        prev_timestamp = last_update if last_update else self.last_update
+        self.last_update = datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+
+        # Save to DynamoDB
+        table = self.get_table()
+        table.put_item(
+            Item=self.to_item(),
+            Expected={
+                'LastUpdate': {
+                    'Value': prev_timestamp
+                }
+            }
+        )
 
 
 class QueryInterface:
