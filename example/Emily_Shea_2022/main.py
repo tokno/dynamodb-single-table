@@ -252,4 +252,6 @@ if __name__ == '__main__':
         pk='USER#12345',
     )
 
+    result = User.find_by_key(user_id='12345')
+
     print(result)

@@ -1,7 +1,7 @@
 from abc import abstractmethod
 import boto3
 from boto3.dynamodb.conditions import Key
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 
@@ -33,6 +33,9 @@ class KeyFormat:
 
     def make_key_str(self, key_variables):
         return self.format_str.format(**key_variables)
+
+    def bind_partial(self, key_variables):
+        ...
 
 
 class ObjectItemConvertion:
@@ -92,8 +95,9 @@ class ObjectItemConvertion:
         for attr_name in self.attributes:
             item[snake_to_camel(attr_name)] = getattr(self, attr_name)
 
-        # TODO: 'Type' and 'LastUpdate'
+        # 'ClassName' and 'LastUpdate'
         item['ClassName'] = self.__class__.__name__
+        item['LastUpdate'] = self.last_update
 
         return item
 
@@ -143,22 +147,42 @@ class CRUDInterface:
     def from_dict(cls, dict):
         raise NotImplementedError()
 
+    @classmethod
+    @abstractmethod
+    def _execute_query(cls, query_params):
+        raise NotImplementedError()
+
     # class methods
     @classmethod
     def find_by_key(cls, **kwargs):
-        raise NotImplementedError()
+        items = cls._execute_query({
+            'KeyConditionExpression': Key('PK').eq(cls.pk.make_key_str(kwargs)) & Key('SK').eq(cls.sk.make_key_str(kwargs))
+        })
+
+        if not items:
+            return None
+
+        return cls.from_item(items[0])
 
     @classmethod
-    def search_by_key(cls, **kwargs):
-        raise NotImplementedError()
+    def find_by_key_prefix(cls, **kwargs):
+        key_condition = Key('PK').eq(cls.pk.make_key_str(kwargs))
+
+        items = cls._execute_query({
+            'KeyConditionExpression': Key('PK').eq(cls.pk.make_key_str(kwargs)) & Key('SK').eq(cls.sk.make_key_str(kwargs))
+        })
+
+        if not items:
+            return None
+
+        return cls.from_item(items[0])
 
     @classmethod
     def create(cls, **kwargs):
         new_instance = cls.from_dict(kwargs)
-        setattr(new_instance, 'last_update', datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f%z'))
+        setattr(new_instance, 'last_update', datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z'))
 
         item = new_instance.to_item()
-        item['ClassName'] = cls.__name__
 
         # Save to DynamoDB
         table = cls.get_table()
@@ -178,7 +202,13 @@ class CRUDInterface:
 
     # instance methods
     def save(self):
-        raise NotImplementedError()
+        self.last_update = datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+
+        # Save to DynamoDB
+        table = self.get_table()
+        table.put_item(
+            Item=self.to_item()
+        )
 
     def save_if_no_conflict(self, last_update):
         raise NotImplementedError()
