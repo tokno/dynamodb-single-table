@@ -207,6 +207,16 @@ if __name__ == '__main__':
         sentence='今天天气真好'
     )
 
+    # create sentence
+    Sentence.create(
+        user_id=12345,
+        sentence_id=321,
+        list_id=1,
+        date='2021-06-08',
+        word_id=321,
+        sentence='今天天气真好'
+    )
+
     # create list subscription
     ListSubscription.create(
         user_id=12345,
@@ -252,6 +262,6 @@ if __name__ == '__main__':
         pk='USER#12345',
     )
 
-    result = User.find_by_key(user_id='12345')
+    result = Sentence.find_by_key_prefix(user_id='12345')
 
     print(result)

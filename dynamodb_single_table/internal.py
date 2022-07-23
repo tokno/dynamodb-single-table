@@ -35,7 +35,36 @@ class KeyFormat:
         return self.format_str.format(**key_variables)
 
     def bind_partial(self, key_variables):
-        ...
+        format_chunks = self.format_str.split('#')
+        chunks = []
+        full_bound = False
+
+        for idx, chunk in enumerate(format_chunks):
+            is_last_chunk = idx == len(format_chunks) - 1
+            variable_chunk = re.match(r'\{.*\}', chunk)
+
+            if not variable_chunk:
+                chunks.append(chunk)
+                if is_last_chunk:
+                    full_bound = True
+
+                continue
+
+            print(variable_chunk.group(0))
+            variable_name = variable_chunk.group(0)[1:-1]
+
+            if variable_name not in key_variables:
+                break
+
+            chunks.append(chunk.format(**key_variables))
+
+            if is_last_chunk:
+                full_bound = True
+
+        key_str1 = '#'.join(chunks)
+        key_str2 = key_str1 if full_bound else f'{key_str1}#'
+
+        return key_str2
 
 
 class ObjectItemConvertion:
@@ -166,16 +195,12 @@ class CRUDInterface:
 
     @classmethod
     def find_by_key_prefix(cls, **kwargs):
-        key_condition = Key('PK').eq(cls.pk.make_key_str(kwargs))
-
+        print(cls.sk.bind_partial(kwargs))
         items = cls._execute_query({
-            'KeyConditionExpression': Key('PK').eq(cls.pk.make_key_str(kwargs)) & Key('SK').eq(cls.sk.make_key_str(kwargs))
+            'KeyConditionExpression': Key('PK').eq(cls.pk.make_key_str(kwargs)) & Key('SK').begins_with(cls.sk.bind_partial(kwargs))
         })
 
-        if not items:
-            return None
-
-        return cls.from_item(items[0])
+        return [cls.from_item(item) for item in items]
 
     @classmethod
     def create(cls, **kwargs):
