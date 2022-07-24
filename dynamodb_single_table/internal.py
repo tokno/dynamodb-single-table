@@ -156,10 +156,12 @@ class ObjectItemConvertion:
     @classmethod
     def from_dict(cls, dict):
         instance = cls()
+        
+        for attr_name in cls.attributes:
+            setattr(instance, attr_name, dict[attr_name])
 
-        for k, v in dict.items():
-            # TODO: Check attribute name are valid.
-            setattr(instance, k, v)
+        for attr_name in cls._key_variable_names:
+            setattr(instance, attr_name, dict[attr_name])
 
         return instance
 
