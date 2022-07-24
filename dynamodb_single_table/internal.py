@@ -149,7 +149,7 @@ class ObjectItemConvertion:
             key_variables.update(cls.gsi1_sk.extract_variables(item['GSI1SK']))
 
         return cls.from_dict({
-            **item.copy(),
+            **{camel_to_snake(k): v for k, v in item.items()},
             **key_variables,
         })
 
