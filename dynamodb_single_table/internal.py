@@ -29,7 +29,7 @@ class KeyFormat:
 
     def extract_variables(self, key_str):
         chunks = zip(self.format_str.split('#'), key_str.split('#'))
-        return {f[1:-1]: k for (f, k) in chunks if re.match(r'\{.*\}]', f)}
+        return {f[1:-1]: k for (f, k) in chunks if re.match(r'\{.*\}', f)}
 
     def make_key_str(self, key_variables):
         return self.format_str.format(**key_variables)
@@ -50,7 +50,6 @@ class KeyFormat:
 
                 continue
 
-            print(variable_chunk.group(0))
             variable_name = variable_chunk.group(0)[1:-1]
 
             if variable_name not in key_variables:
@@ -140,7 +139,7 @@ class ObjectItemConvertion:
 
         # Set key attributes
         key_variables.update(cls.pk.extract_variables(item['PK']))
-        key_variables.update(cls.pk.extract_variables(item['SK']))
+        key_variables.update(cls.sk.extract_variables(item['SK']))
 
         # Set gsi1 key attributes
         if hasattr(cls, 'gsi1_pk'):
@@ -198,7 +197,6 @@ class CRUDInterface:
 
     @classmethod
     def find_by_key_prefix(cls, **kwargs):
-        print(cls.sk.bind_partial(kwargs))
         items = cls._execute_query({
             'KeyConditionExpression': Key('PK').eq(cls.pk.make_key_str(kwargs)) & Key('SK').begins_with(cls.sk.bind_partial(kwargs))
         })
