@@ -207,7 +207,6 @@ class CRUDInterface:
 
     @classmethod
     def create(cls, **kwargs):
-    def create_if_no_conflict(cls, **kwargs):
         new_instance = cls.from_dict({
             **kwargs,
             **{
