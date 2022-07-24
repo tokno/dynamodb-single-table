@@ -86,6 +86,7 @@ class ObjectItemConvertion:
     def attributes(cls):
         ...
 
+    @classmethod
     @property
     def _key_variable_names(cls):
         key_variable_names = set(sum([
