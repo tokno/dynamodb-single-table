@@ -163,6 +163,8 @@ class ObjectItemConvertion:
         for attr_name in cls._key_variable_names:
             setattr(instance, attr_name, dict[attr_name])
 
+        setattr(instance, 'last_update', dict['last_update'])
+
         return instance
 
 
@@ -205,8 +207,13 @@ class CRUDInterface:
 
     @classmethod
     def create(cls, **kwargs):
-        new_instance = cls.from_dict(kwargs)
-        setattr(new_instance, 'last_update', datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z'))
+    def create_if_no_conflict(cls, **kwargs):
+        new_instance = cls.from_dict({
+            **kwargs,
+            **{
+                'last_update': datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+            },
+        })
 
         item = new_instance.to_item()
 
@@ -220,8 +227,12 @@ class CRUDInterface:
 
     @classmethod
     def create_if_no_conflict(cls, **kwargs):
-        new_instance = cls.from_dict(kwargs)
-        setattr(new_instance, 'last_update', datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z'))
+        new_instance = cls.from_dict({
+            **kwargs,
+            **{
+                'last_update': datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+            },
+        })
 
         item = new_instance.to_item()
 
