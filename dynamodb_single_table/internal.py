@@ -296,7 +296,7 @@ class QueryInterface:
             result = cls.get_table().query(**{
                 **query_params,
                 **{
-                    'LastEvaluatedKey': result['LastEvaluatedKey']
+                    'ExclusiveStartKey': result['LastEvaluatedKey']
                 }
             })
 
